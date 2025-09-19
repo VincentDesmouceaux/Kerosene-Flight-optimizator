@@ -1,0 +1,14 @@
+# Dockerfile.render (headless MP4)
+FROM python:3.11-slim
+ENV PYTHONUNBUFFERED=1 MPLBACKEND=Agg
+
+# ffmpeg pour écrire les MP4
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+RUN pip install --no-cache-dir matplotlib>=3.8.0
+
+COPY snapsac_render.py /app/snapsac_render.py
+
+CMD ["python", "/app/snapsac_render.py"]

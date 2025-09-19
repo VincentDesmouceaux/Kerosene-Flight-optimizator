@@ -1,25 +1,22 @@
-# Dockerfile
+# Dockerfile (GUI)
 FROM python:3.11-slim
 
-# Logs non bufferisés + backend headless
-ENV PYTHONUNBUFFERED=1 \
-    MPLBACKEND=Agg
-
-# OS deps (ffmpeg pour encoder le MP4)
+# Pour Tkinter + X11
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
+    python3-tk tk \
+    libx11-6 libxext6 libxrender1 libxft2 libxinerama1 libxcursor1 \
+    fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Dépendances Python (matplotlib suffit)
+# Dépendances Python
 RUN pip install --no-cache-dir matplotlib>=3.8.0
 
-# Code
-COPY snapsac_render.py /app/snapsac_render.py
+# Code GUI
+COPY snapsac_gui.py /app/snapsac_gui.py
 
-# Dossier de sortie (monté depuis l’hôte)
-RUN mkdir -p /out
+# Backend GUI explicite
+ENV MPLBACKEND=TkAgg
 
-# Petit test ffmpeg au démarrage, puis run
-CMD ["bash", "-lc", "echo \"[BOOT] ffmpeg: $(ffmpeg -version | head -n1)\"; python /app/snapsac_render.py"]
+CMD ["python", "/app/snapsac_gui.py"]
