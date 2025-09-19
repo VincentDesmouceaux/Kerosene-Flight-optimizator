@@ -1,0 +1,35 @@
+services:
+  gui:
+    # Image tout-en-un (Dockerfile avec app_launcher.py, snapsac_gui.py, snapsac_render.py)
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: kerosene-app:latest
+    container_name: kerosene-run
+    environment:
+      # macOS + XQuartz
+      DISPLAY: host.docker.internal:0
+      MODE: gui
+      AUTO_RESTART: "1"        # relance la fenêtre si tu la fermes
+      RESTART_DELAY: "2"
+      PYTHONUNBUFFERED: "1"    # logs non bufferisés
+      DEBUG: "1"               # logs verbeux dans snapsac_gui
+      LOG_EVERY: "1"           # log chaque frame (monte à 5/10 si trop bavard)
+    restart: unless-stopped
+
+  render:
+    build:
+      context: .
+    image: kerosene-app:latest
+    container_name: kerosene-render
+    environment:
+      MODE: render            # rend un MP4 (pas de fenêtre)
+      LOOP_DELAY: "0"         # 0 = un seul rendu puis sortie; >0 = boucle
+      FPS: "10"
+      INTERVAL_MS: "90"
+      OUT_DIR: "/out"
+      PYTHONUNBUFFERED: "1"
+      DEBUG: "1"
+    volumes:
+      - ./out:/out
+    restart: "no"
