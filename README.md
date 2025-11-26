@@ -75,12 +75,12 @@ Pour chaque avion :
 📦 Installation
 ---------------
 
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   # Cloner le dépôt  git clone https://github.com/VincentDesmouceaux/Kerosene-Flight-optimizator.git  cd Kerosene-Flight-optimizator  # (Optionnel) Créer un venv  python3 -m venv .venv  source .venv/bin/activate    # Windows: .venv\Scripts\activate  # Dépendances  pip install matplotlib  # (Tkinter est inclus avec Python sur macOS/Windows ; sur certaines distros Linux : sudo apt-get install python3-tk)   `
+ # Cloner le dépôt  git clone https://github.com/VincentDesmouceaux/Kerosene-Flight-optimizator.git  cd Kerosene-Flight-optimizator  # (Optionnel) Créer un venv  python3 -m venv .venv  source .venv/bin/activate    # Windows: .venv\Scripts\activate  # Dépendances  pip install matplotlib  # (Tkinter est inclus avec Python sur macOS/Windows ; sur certaines distros Linux : sudo apt-get install python3-tk)   `
 
 🚀 Lancer la simulation
 -----------------------
 
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   python snapsac_gui.py   `
+ python snapsac_gui.py   `
 
 *   Une fenêtre s’ouvre, l’animation démarre **automatiquement**.
     
@@ -90,18 +90,18 @@ Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQL
 🗂 Structure
 ------------
 
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   Kerosene-Flight-optimizator/  ├─ snapsac_gui.py               # Application Tkinter + Matplotlib (3 graphes côte à côte)  ├─ README.md                    # Ce fichier  └─ .gitignore                   # Ignorés Python/macOS/venv   `
+   Kerosene-Flight-optimizator/  ├─ snapsac_gui.py               # Application Tkinter + Matplotlib (3 graphes côte à côte)  ├─ README.md                    # Ce fichier  └─ .gitignore                   # Ignorés Python/macOS/venv   `
 
 🔧 Paramétrage rapide
 ---------------------
 
 Dans snapsac\_gui.py, tu peux ajuster :
 
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   DIRECTIONS = ["head", "tail", "side"]  VENTS = list(range(0, 301, 10))  DISTANCES = [800, 1200, 1600, 2000]  PAX_LIST = [140, 160, 180, 200, 220, 240]   `
+ DIRECTIONS = ["head", "tail", "side"]  VENTS = list(range(0, 301, 10))  DISTANCES = [800, 1200, 1600, 2000]  PAX_LIST = [140, 160, 180, 200, 220, 240]   `
 
 Et enrichir/ajuster les avions :
 
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   AVIONS = {    "A320": {"poids_vide": 42000, "conso_base": 2.4, "max_pax": 180, "sens_vent": 1.0, "vitesse": 840},    ...  }   `
+ AVIONS = {    "A320": {"poids_vide": 42000, "conso_base": 2.4, "max_pax": 180, "sens_vent": 1.0, "vitesse": 840},    ...  }   `
 
 🖼 Design & lisibilité
 ----------------------
@@ -168,4 +168,3 @@ Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQL
 
 **MIT** — fais-en bon usage, améliore, partage, crédite si tu peux.
 
-Si tu veux, je te prépare aussi un **badge GitHub Actions** (CI) minimal pour valider que snapsac\_gui.py se lance sans erreur (lint/flake8 optionnel).
