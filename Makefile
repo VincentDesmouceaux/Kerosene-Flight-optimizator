@@ -1,35 +1,36 @@
 SHELL := /bin/bash
-
-# ------- Réglages -------
 APP_IMAGE := kerosene-app:latest
 
-# ------- Aide -------
 help:
 	@echo "Commandes:"
-	@echo "  make xquartz         # (macOS) Ouvre XQuartz et autorise les clients X11"
-	@echo "  make build           # Build l'image ${APP_IMAGE}"
-	@echo "  make run-gui         # Lance la fenêtre animée (GUI) et auto-restart"
-	@echo "  make logs            # Affiche les logs de la GUI"
-	@echo "  make stop            # Stoppe/retire les services"
-	@echo "  make render-once     # Rend 1 MP4 dans ./out puis sort"
-	@echo "  make render-loop     # Rend des MP4 en boucle (LOOP_DELAY=10)"
-	@echo "  make clean-images    # (option) Supprime l'image locale ${APP_IMAGE}"
+	@echo "  make setup-x11       # Configure XQuartz"
+	@echo "  make build           # Build l'image Docker"
+	@echo "  make run-gui         # Lance l'application GUI"
+	@echo "  make logs            # Affiche les logs"
+	@echo "  make stop            # Arrête les conteneurs"
 
-# ------- macOS XQuartz -------
-xquartz:
-	@open -a XQuartz || true
-	@sleep 1
-	@/opt/X11/bin/xhost +localhost || true
-	@echo "XQuartz OK. DISPLAY=host.docker.internal:0"
+setup-x11:
+	@echo "Configuration de XQuartz..."
+	@pkill -f Xquartz || true
+	@sleep 2
+	@defaults write org.xquartz.X11 nolisten_tcp -boolean false
+	@defaults write org.macosforge.xquartz.X11 enable_iglx -boolean true
+	@open -a XQuartz
+	@sleep 5
+	@echo "✅ XQuartz configuré"
+	@echo "📝 Dans un NOUVEAU terminal, exécutez:"
+	@echo "   export DISPLAY=:0"
+	@echo "   /opt/X11/bin/xhost +localhost"
+	@echo "   /opt/X11/bin/xhost +"
 
-# ------- Build -------
 build:
 	docker compose build
 
-# ------- GUI -------
-run-gui: xquartz build
+run-gui:
+	@echo "🚀 Lancement de l'application GUI..."
 	docker compose up -d gui
-	@echo "Fenêtre en cours…  => docker logs -f kerosene-run"
+	@sleep 3
+	@echo "✅ Application lancée. Logs: make logs"
 
 logs:
 	docker logs -f kerosene-run
@@ -37,19 +38,12 @@ logs:
 stop:
 	docker compose down
 
-# ------- RENDER (MP4) -------
-render-once: build
+render-once:
 	mkdir -p out
-	# un rendu MP4, puis sortie
 	docker compose run --rm -e LOOP_DELAY=0 render
-	@echo "MP4 écrit dans ./out"
 
-render-loop: build
-	mkdir -p out
-	# rend en boucle (10s entre rendus)
-	docker compose run --rm -e LOOP_DELAY=10 render
-
-# ------- Option nettoyage -------
-clean-images:
-	-docker rm -f kerosene-run kerosene-render 2>/dev/null || true
+clean:
+	docker compose down
 	-docker rmi ${APP_IMAGE} 2>/dev/null || true
+
+.PHONY: help setup-x11 build run-gui logs stop render-once clean
