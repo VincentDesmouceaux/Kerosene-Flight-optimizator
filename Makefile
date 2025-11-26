@@ -1,49 +1,43 @@
 SHELL := /bin/bash
-APP_IMAGE := kerosene-app:latest
+
+.PHONY: help setup build start stop logs render clean status
 
 help:
-	@echo "Commandes:"
-	@echo "  make setup-x11       # Configure XQuartz"
-	@echo "  make build           # Build l'image Docker"
-	@echo "  make run-gui         # Lance l'application GUI"
-	@echo "  make logs            # Affiche les logs"
-	@echo "  make stop            # Arrête les conteneurs"
+	@echo "🏗️  Commandes disponibles:"
+	@echo "  make setup    Configure XQuartz"
+	@echo "  make build    Construit les images Docker"
+	@echo "  make start    Démarre l'application GUI"
+	@echo "  make stop     Arrête l'application"
+	@echo "  make logs     Affiche les logs en temps réel"
+	@echo "  make render   Génère une vidéo MP4"
+	@echo "  make clean    Nettoie l'environnement Docker"
+	@echo "  make status   Affiche le statut"
 
-setup-x11:
-	@echo "Configuration de XQuartz..."
-	@pkill -f Xquartz || true
-	@sleep 2
-	@defaults write org.xquartz.X11 nolisten_tcp -boolean false
-	@defaults write org.macosforge.xquartz.X11 enable_iglx -boolean true
-	@open -a XQuartz
-	@sleep 5
-	@echo "✅ XQuartz configuré"
-	@echo "📝 Dans un NOUVEAU terminal, exécutez:"
-	@echo "   export DISPLAY=:0"
-	@echo "   /opt/X11/bin/xhost +localhost"
-	@echo "   /opt/X11/bin/xhost +"
+setup:
+	./scripts/setup-xquartz.sh
 
 build:
-	docker compose build
+	./scripts/docker-manager.sh build
 
-run-gui:
-	@echo "🚀 Lancement de l'application GUI..."
-	docker compose up -d gui
-	@sleep 3
-	@echo "✅ Application lancée. Logs: make logs"
-
-logs:
-	docker logs -f kerosene-run
+start:
+	./scripts/docker-manager.sh start
 
 stop:
-	docker compose down
+	./scripts/docker-manager.sh stop
 
-render-once:
-	mkdir -p out
-	docker compose run --rm -e LOOP_DELAY=0 render
+logs:
+	./scripts/docker-manager.sh logs
+
+render:
+	./scripts/docker-manager.sh render
 
 clean:
-	docker compose down
-	-docker rmi ${APP_IMAGE} 2>/dev/null || true
+	./scripts/docker-manager.sh clean
 
-.PHONY: help setup-x11 build run-gui logs stop render-once clean
+status:
+	./scripts/docker-manager.sh status
+
+run: build start
+	@echo "✅ Application démarrée!"
+	@echo "📊 Pour voir les logs: make logs"
+	@echo "🛑 Pour arrêter: make stop"

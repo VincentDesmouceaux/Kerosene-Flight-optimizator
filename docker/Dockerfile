@@ -27,10 +27,8 @@ RUN pip install --no-cache-dir matplotlib>=3.8.0 numpy
 ARG BUILD_ID=dev
 ENV BUILD_ID=${BUILD_ID}
 
-# Copie du code
-COPY app_launcher.py .
-COPY snapsac_gui.py .
-COPY snapsac_render.py .
+# Copie du code depuis le dossier src/
+COPY src/ .
 
 # Configuration par défaut
 ENV MODE=gui

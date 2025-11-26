@@ -1,25 +1,25 @@
 services:
   gui:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
     image: kerosene-app:latest
-    container_name: kerosene-run
+    container_name: kerosene-gui
     environment:
-      DISPLAY: 192.168.1.5:0
+      DISPLAY: ${HOST_IP:-host.docker.internal}:0
       MODE: gui
       AUTO_RESTART: "1"
       RESTART_DELAY: "2"
       PYTHONUNBUFFERED: "1"
       DEBUG: "1"
-      LOG_EVERY: "1"
     network_mode: host
     privileged: true
     restart: unless-stopped
 
   render:
     build:
-      context: .
+      context: ..
+      dockerfile: docker/Dockerfile
     image: kerosene-app:latest
     container_name: kerosene-render
     environment:
@@ -27,9 +27,8 @@ services:
       LOOP_DELAY: "0"
       FPS: "10"
       INTERVAL_MS: "90"
-      OUT_DIR: "/out"
+      OUT_DIR: "/output"
       PYTHONUNBUFFERED: "1"
-      DEBUG: "1"
     volumes:
-      - ./out:/out
+      - ../data/out:/output
     restart: "no"
