@@ -154,6 +154,14 @@ class SnapSacAnimation:
             self.center_lon = float(os.getenv('DEFAULT_LON', '2.3522'))
         except Exception:
             self.center_lat, self.center_lon = 48.8566, 2.3522
+        # wind angle/speed (can be forced via env DEFAULT_WIND_ANGLE)
+        _ang = os.getenv('DEFAULT_WIND_ANGLE')
+        try:
+            self.wind_angle = float(_ang) if _ang is not None else None
+        except Exception:
+            self.wind_angle = None
+        self.wind_speed = None
+        self.wind_source = None
 
         self._reset_sequence(self.current_seq)
 
@@ -189,15 +197,6 @@ class SnapSacAnimation:
 
         # Canvas réutilisable
         self.canvas = FigureCanvas(self.fig)
-        # Free APIs mode
-        self.use_free_apis = os.getenv('USE_FREE_APIS', '0') in (
-            '1', 'true', 'True') and fetch_current_wind is not None
-        # center point for weather lookups (env or Paris default)
-        try:
-            self.center_lat = float(os.getenv('DEFAULT_LAT', '48.8566'))
-            self.center_lon = float(os.getenv('DEFAULT_LON', '2.3522'))
-        except Exception:
-            self.center_lat, self.center_lon = 48.8566, 2.3522
         # Légende statique (sur le premier axe)
         legend_elements = []
         for avion, color in PALETTE.items():
@@ -237,6 +236,20 @@ class SnapSacAnimation:
             try:
                 w = fetch_current_wind(self.center_lat, self.center_lon)
                 if w and 'windspeed_kmh' in w:
+                    # store wind measurements for display
+                    ws = w.get('windspeed_kmh')
+                    try:
+                        self.wind_speed = float(ws) if ws is not None else None
+                    except Exception:
+                        self.wind_speed = None
+                    # only set wind_angle from API if not forced by env
+                    wd = w.get('winddirection')
+                    if self.wind_angle is None and wd is not None:
+                        try:
+                            self.wind_angle = float(wd)
+                        except Exception:
+                            pass
+                    self.wind_source = 'open-meteo'
                     center = int(round(w['windspeed_kmh']))
                     # Build vent steps centered on current wind, clipped to 0-300
                     lo = max(0, center - 80)
@@ -459,6 +472,14 @@ class SnapSacAnimation:
             kpi_text += f"Direction: {self.direction}\n"
             kpi_text += f"Distance: {self.distance} km\n"
             kpi_text += f"Passagers: {self.pax}\n\n"
+
+            # Informations vent (si disponibles)
+            if self.wind_speed is not None:
+                kpi_text += f"Vent mesuré: {self.wind_speed:.0f} km/h\n"
+            if self.wind_angle is not None:
+                source = self.wind_source if self.wind_source else (
+                    'env' if os.getenv('DEFAULT_WIND_ANGLE') else 'inconnu')
+                kpi_text += f"Angle vent: {self.wind_angle:.0f}° (source: {source})\n\n"
 
             if best_model and best_state:
                 kpi_text += f"MEILLEUR: {best_model}\n"
