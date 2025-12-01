@@ -11,6 +11,7 @@ build/
 .venv/
 venv/
 .env
+.env.*
 
 # OS
 .DS_Store
@@ -19,5 +20,17 @@ venv/
 .matplotlib/
 .ipynb_checkpoints/
 
-# Sorties locales
+# Sorties locales / rendus
 out/
+data/out/
+*.mp4
+*.gif
+
+# Docker / tooling
+docker-compose.override.yml
+*.log
+
+# IDE / Editeurs
+.vscode/
+.idea/
+*.code-workspace

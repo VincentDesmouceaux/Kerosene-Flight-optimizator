@@ -1,23 +1,26 @@
+# Dockerfile - Web / live animation
 FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 MPLBACKEND=Agg
 
 WORKDIR /app
 
-# Installation des dépendances système minimales
+# System deps for matplotlib PNG
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpng-dev \
     libjpeg-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copier requirements d'abord (optimisation cache Docker)
+# Python deps
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copier le code
-COPY app_web.py .
+# App code
 COPY src/ ./src/
 
-# Exposer le port pour Northflank
+# Kerosene Optimisator runs from src/
+WORKDIR /app/src
+
 EXPOSE 8080
 
-# Commande pour Northflank
 CMD ["python", "app_web.py"]

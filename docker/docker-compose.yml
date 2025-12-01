@@ -2,33 +2,14 @@ services:
   gui:
     build:
       context: ..
-      dockerfile: docker/Dockerfile
+      dockerfile: Dockerfile
     image: kerosene-app:latest
     container_name: kerosene-gui
     environment:
-      DISPLAY: ${HOST_IP:-host.docker.internal}:0
-      MODE: gui
-      AUTO_RESTART: "1"
-      RESTART_DELAY: "2"
       PYTHONUNBUFFERED: "1"
       DEBUG: "1"
-    network_mode: host
-    privileged: true
+      TARGET_FPS: "20"   # 👈 ralentit la cadence d’images
+      SUBSTEPS: "8"      # 👈 rallonge la durée d’un cycle de vent
+    ports:
+      - "8080:8080"
     restart: unless-stopped
-
-  render:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-    image: kerosene-app:latest
-    container_name: kerosene-render
-    environment:
-      MODE: render
-      LOOP_DELAY: "0"
-      FPS: "10"
-      INTERVAL_MS: "90"
-      OUT_DIR: "/output"
-      PYTHONUNBUFFERED: "1"
-    volumes:
-      - ../data/out:/output
-    restart: "no"
