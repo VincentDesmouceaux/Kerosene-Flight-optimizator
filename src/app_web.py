@@ -993,6 +993,7 @@ def index():
 
 
 if __name__ == '__main__':
+    port = int(os.getenv("PORT", "8080"))
     print("🚀 Starting Kerosene Optimisator Web...")
-    print("📡 Open: http://localhost:8080")
-    app.run(host='0.0.0.0', port=8080, debug=False)
+    print(f"📡 Listening on 0.0.0.0:{port}")
+    app.run(host='0.0.0.0', port=port, debug=False)
