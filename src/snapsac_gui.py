@@ -1,8 +1,9 @@
 # snapsac_gui.py
 # UI "Neon Dark" : 3 graphes empilés (verticaux), KPIs à droite, palette néon
-# Animations lissées (easing + sous-étapes), markers "glow", ligne de vent animée.
-# Corrections: gestion sûre du fill_between (remove protégé, x triés et croissants).
-#              KPI: plus aucun mélange grid/pack (tout en grid).
+# Version "fast & smooth" :
+# - Vent 0→300 par pas de 5 km/h (détails fins)
+# - 1 frame = 1 point (pas de SUBSTEPS ni interpolation)
+# - Marqueur glow collé sur la courbe (plus de séparation point/ligne)
 
 from matplotlib.collections import PolyCollection
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -25,10 +26,12 @@ APP_BUILD = os.getenv("BUILD_ID", "dev")
 # ====== Réglages animation ======
 DEBUG = os.getenv("DEBUG", "0") == "1"
 LOG_EVERY = max(1, int(os.getenv("LOG_EVERY", "10")))
-VENT_STEPS = list(range(0, 301, 20))   # 0,20,...,300
-SUBSTEPS = 10                           # sous-étapes (fluidité)
-INTERVAL_MS = int(os.getenv("INTERVAL_MS", "50"))
-EASING = "ease_in_out"                  # "linear" | "ease_in_out"
+
+# Plus de détails = pas de 5 km/h
+VENT_STEPS = list(range(0, 301, 5))     # 0,5,10,...,300
+SUBSTEPS = 1                            # 1 frame = 1 point
+INTERVAL_MS = int(os.getenv("INTERVAL_MS", "30"))  # ~30 ms → ~1,8s le sweep
+EASING = "linear"                       # plus utile ici, mais on garde le switch
 
 
 def log(msg: str):
@@ -83,11 +86,17 @@ def calcule_etat(avion_key, direction, vent, pax, distance):
     vitesse = max(600, min(1000, vitesse))
     conso_km = specs["conso_base"] + (masse / 1000.0) * 0.1 + coef
     conso_L = conso_km * distance
-    return {"conso_L": conso_L, "conso_L_pax": conso_L / pax, "duree_h": distance / vitesse, "vitesse": vitesse}
+    return {
+        "conso_L": conso_L,
+        "conso_L_pax": conso_L / pax,
+        "duree_h": distance / vitesse,
+        "vitesse": vitesse
+    }
 
 
 def ymax_sequence(direction, distance, pax, metric):
     y_max = 0.0
+    # ici on peut garder un pas plus gros pour le bound
     for v in range(0, 301, 20):
         for avion in AVIONS:
             e = calcule_etat(avion, direction, v, pax, distance)
@@ -103,19 +112,18 @@ def sequence_generator():
                 for pax in PAX_LIST:
                     yield {"direction": d, "distance": dist, "pax": pax}
 
-# ====== Easing & interpolation ======
+# ====== Easing ======
 
 
 def ease_in_out(t):   # cosinus (accélère puis décélère)
     return 0.5 - 0.5 * math.cos(math.pi * t)
 
 
-def lerp(a, b, t):    # interpolation linéaire
-    return a + (b - a) * t
-
-
 def ease_t(t):
-    return ease_in_out(t) if EASING == "ease_in_out" else t
+    if EASING == "ease_in_out":
+        return ease_in_out(t)
+    return t  # ici t=0 tout le temps, mais on garde la fonction pour compat
+
 
 # ====== Style matplotlib ======
 
@@ -133,17 +141,16 @@ def set_axis_style(ax, title, ylabel):
 
 
 def add_glow_marker(ax, color):
-    outer = ax.scatter([], [], s=140, color=color,
-                       alpha=0.20, zorder=6, edgecolor="none")
-    inner = ax.scatter([], [], s=50,  color=color, alpha=0.95,
-                       zorder=7, edgecolor="#FFFFFF", linewidths=0.9)
+    outer = ax.scatter([], [], s=160, color=color,
+                       alpha=0.22, zorder=6, edgecolor="none")
+    inner = ax.scatter([], [], s=58,  color=color, alpha=0.98,
+                       zorder=7, edgecolor="#FFFFFF", linewidths=1.0)
     return outer, inner
 
 # ====== Sidebar: lignes KPI (GRID ONLY) ======
 
 
 def kpi_row(parent, row, label, init_value="—"):
-    """Ajoute une ligne KPI (label à gauche, valeur à droite) en utilisant grid (pas de pack)."""
     parent.grid_columnconfigure(0, weight=1)
     parent.grid_columnconfigure(1, weight=1)
 
@@ -171,7 +178,8 @@ class App:
     def __init__(self, root):
         self.root = root
         self.root.title(
-            f"Kerosene Flight Optimizator — Live  [BUILD {APP_BUILD}]")
+            f"Kerosene Flight Optimizator — Live  [BUILD {APP_BUILD}]"
+        )
         self.root.configure(bg=BG)
         self.root.geometry("1480x980")
 
@@ -205,16 +213,22 @@ class App:
         left.rowconfigure(1, weight=1)
         left.columnconfigure(0, weight=1)
 
-        ttk.Label(left, text="Simulation — Construction progressive des courbes", style="Title.TLabel")\
-            .grid(row=0, column=0, sticky="w", pady=(0, 8))
+        ttk.Label(
+            left,
+            text="Simulation — Construction progressive des courbes",
+            style="Title.TLabel"
+        ).grid(row=0, column=0, sticky="w", pady=(0, 8))
 
         # Figure 3x1 empilée
         self.fig = Figure(figsize=(10.8, 8.6), dpi=100, facecolor=BG)
         self.ax_conso = self.fig.add_subplot(3, 1, 1)
         self.ax_cpx = self.fig.add_subplot(3, 1, 2)
         self.ax_duree = self.fig.add_subplot(3, 1, 3)
-        self.axes = {"conso_L": self.ax_conso,
-                     "conso_L_pax": self.ax_cpx, "duree_h": self.ax_duree}
+        self.axes = {
+            "conso_L": self.ax_conso,
+            "conso_L_pax": self.ax_cpx,
+            "duree_h": self.ax_duree,
+        }
         for metric, ax in self.axes.items():
             set_axis_style(ax, self.TITLES[metric], self.YLABS[metric])
             ax.set_xlim(0, 300)
@@ -229,16 +243,24 @@ class App:
         for metric, ax in self.axes.items():
             self.wind_lines[metric] = ax.axvline(
                 0, color="#7480b8", lw=1.6, ls="--", alpha=0.8, zorder=4)
-            self.best_text[metric] = ax.text(0.985, 0.06, "Best: —", transform=ax.transAxes,
-                                             ha="right", va="bottom", fontsize=10, color="#C9CEEC")
+            self.best_text[metric] = ax.text(
+                0.985, 0.06, "Best: —", transform=ax.transAxes,
+                ha="right", va="bottom", fontsize=10, color="#C9CEEC"
+            )
             for avion, color in PALETTE.items():
-                shadow, = ax.plot([], [], lw=6.0, color="#000000",
-                                  alpha=0.22, solid_capstyle="round", zorder=1)
-                line,   = ax.plot([], [], lw=3.2, color=color, alpha=0.95,
-                                  solid_capstyle="round", zorder=3, label=avion)
+                shadow, = ax.plot(
+                    [], [], lw=6.0, color="#000000",
+                    alpha=0.22, solid_capstyle="round", zorder=1
+                )
+                line,   = ax.plot(
+                    [], [], lw=3.4, color=color, alpha=0.98,
+                    solid_capstyle="round", zorder=3, label=avion
+                )
                 g_outer, g_inner = add_glow_marker(ax, color)
                 self.series[metric][avion] = {
-                    "x": [], "y": [], "line": line, "shadow": shadow, "glow": (g_outer, g_inner)}
+                    "x": [], "y": [], "line": line,
+                    "shadow": shadow, "glow": (g_outer, g_inner)
+                }
             leg = ax.legend(loc="upper left", frameon=False, fontsize=9)
             for txt in leg.get_texts():
                 txt.set_color("#D9DEF9")
@@ -247,8 +269,12 @@ class App:
         self.canvas.draw()
         self.canvas.get_tk_widget().grid(row=1, column=0, sticky="nsew")
 
-        self.prog = ttk.Progressbar(left, mode="determinate", style="Neon.Horizontal.TProgressbar",
-                                    maximum=len(VENT_STEPS)*SUBSTEPS)
+        self.prog = ttk.Progressbar(
+            left,
+            mode="determinate",
+            style="Neon.Horizontal.TProgressbar",
+            maximum=len(VENT_STEPS) * SUBSTEPS
+        )
         self.prog.grid(row=2, column=0, sticky="ew", pady=(8, 0))
 
         # ----- Colonne droite (KPIs) -----
@@ -257,8 +283,11 @@ class App:
         right.grid_columnconfigure(0, weight=1)
         right.grid_columnconfigure(1, weight=1)
 
-        ttk.Label(right, text="STATUT SIMULATION", style="Panel.TLabel",
-                  font=("Helvetica", 12, "bold")).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 6))
+        ttk.Label(
+            right, text="STATUT SIMULATION", style="Panel.TLabel",
+            font=("Helvetica", 12, "bold")
+        ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 6))
+
         self.tag_dir = ttk.Label(
             right, text="Direction: —", style="Muted.TLabel")
         self.tag_dist = ttk.Label(
@@ -270,10 +299,14 @@ class App:
         self.tag_pax.grid(row=3, column=0, columnspan=2, sticky="w")
 
         ttk.Separator(right, orient="horizontal").grid(
-            row=4, column=0, columnspan=2, sticky="ew", pady=8)
+            row=4, column=0, columnspan=2, sticky="ew", pady=8
+        )
 
-        ttk.Label(right, text="MEILLEUR (L/pax)", style="Panel.TLabel",
-                  font=("Helvetica", 12, "bold")).grid(row=5, column=0, columnspan=2, sticky="w", pady=(0, 4))
+        ttk.Label(
+            right, text="MEILLEUR (L/pax)", style="Panel.TLabel",
+            font=("Helvetica", 12, "bold")
+        ).grid(row=5, column=0, columnspan=2, sticky="w", pady=(0, 4))
+
         self.kpi_model = kpi_row(
             right, row=6,  label="Modèle",         init_value="—")
         self.kpi_cpx = kpi_row(
@@ -286,7 +319,8 @@ class App:
             right, row=10, label="Vitesse (km/h)", init_value="—")
 
         ttk.Separator(right, orient="horizontal").grid(
-            row=11, column=0, columnspan=2, sticky="ew", pady=8)
+            row=11, column=0, columnspan=2, sticky="ew", pady=8
+        )
         ttk.Label(right, text="BUILD", style="Muted.TLabel").grid(
             row=12, column=0, sticky="w")
         ttk.Label(right, text=f"{APP_BUILD}", style="Muted.TLabel").grid(
@@ -296,14 +330,15 @@ class App:
         self.seq_gen = sequence_generator()
         self.current_seq = next(self.seq_gen)
         self.step_index = 0
-        self.substep = 0
         self._reset_sequence(self.current_seq)
 
         total_frames = len(VENT_STEPS) * SUBSTEPS
-        self.anim = FuncAnimation(self.fig, self._update, frames=total_frames,
-                                  interval=INTERVAL_MS, blit=False,
-                                  cache_frame_data=False, save_count=total_frames)
-        log("[GUI] animation initialisée — Neon Dark")
+        self.anim = FuncAnimation(
+            self.fig, self._update, frames=total_frames,
+            interval=INTERVAL_MS, blit=False,
+            cache_frame_data=False, save_count=total_frames
+        )
+        log("[GUI] animation initialisée — Neon Dark (fast, pas=5, no-substeps)")
 
     # ----- helpers -----
     def _reset_sequence(self, seq):
@@ -329,8 +364,10 @@ class App:
             ymax = ymax_sequence(
                 self.direction, self.distance, self.pax, metric)
             ax.set_ylim(0, ymax)
-            ax.set_title(f"{self.TITLES[metric]} — {self.direction} | {self.distance} km | {self.pax} pax",
-                         fontsize=13, fontweight="bold", color=FG, pad=10)
+            ax.set_title(
+                f"{self.TITLES[metric]} — {self.direction} | {self.distance} km | {self.pax} pax",
+                fontsize=13, fontweight="bold", color=FG, pad=10
+            )
             self.wind_lines[metric].set_xdata([0, 0])
             self.best_text[metric].set_text("Best: —")
 
@@ -349,7 +386,6 @@ class App:
         )
         self.canvas.draw()
         self.step_index = 0
-        self.substep = 0
         self.prog["value"] = 0
 
         # reset KPI
@@ -365,87 +401,82 @@ class App:
     # ----- animation -----
     def _update(self, frame_id):
         try:
-            self.step_index = frame_id // SUBSTEPS
-            self.substep = frame_id % SUBSTEPS
-            t = ease_t(self.substep / SUBSTEPS)
+            self.step_index = frame_id  # 1 frame = 1 vent step
+            if self.step_index >= len(VENT_STEPS):
+                return []
 
-            v0 = VENT_STEPS[self.step_index]
-            v1 = VENT_STEPS[self.step_index +
-                            1] if self.step_index < len(VENT_STEPS) - 1 else v0
-            v_cur = lerp(v0, v1, t)
+            v_cur = VENT_STEPS[self.step_index]
 
             if (frame_id % LOG_EVERY) == 0:
-                log(f"[GUI] frame={frame_id} | step={v0}->{v1} | sub={self.substep}/{SUBSTEPS-1}")
+                log(f"[GUI] frame={frame_id} | vent={v_cur} km/h")
 
             best_model, best_state, best_cpx = None, None, float("inf")
 
-            # MAJ séries
+            # Ajout d'un nouveau point pour chaque avion
             for avion in AVIONS:
-                e0 = self._etat(avion, v0)
-                e1 = self._etat(avion, v1)
-                if not e0:
+                e = self._etat(avion, v_cur)
+                if not e:
                     continue
 
-                if self.substep == 0:
-                    for metric in self.METRICS:
-                        s = self.series[metric][avion]
-                        s["x"].append(v0)
-                        s["y"].append(e0[metric])
-                        s["line"].set_data(s["x"], s["y"])
-                        s["shadow"].set_data(s["x"], s["y"])
+                # update séries
+                for metric in self.METRICS:
+                    s = self.series[metric][avion]
+                    s["x"].append(v_cur)
+                    s["y"].append(e[metric])
+                    s["line"].set_data(s["x"], s["y"])
+                    s["shadow"].set_data(s["x"], s["y"])
 
-                # position interpolée (glow)
-                for metric, ax in self.axes.items():
-                    y0 = e0[metric]
-                    y1 = (e1[metric] if e1 else y0)
-                    y_cur = lerp(y0, y1, t)
-                    outer, inner = self.series[metric][avion]["glow"]
-                    outer.set_offsets([[v_cur, y_cur]])
-                    inner.set_offsets([[v_cur, y_cur]])
-                    outer.set_alpha(0.25)
-                    inner.set_alpha(1.0)
-
-                # meilleur L/pax à l’instant courant (interpolé)
-                y0c = e0["conso_L_pax"]
-                y1c = (e1["conso_L_pax"] if e1 else y0c)
-                cpx_cur = lerp(y0c, y1c, t)
+                # meilleur L/pax au vent courant
+                cpx_cur = e["conso_L_pax"]
                 if cpx_cur < best_cpx:
                     best_cpx = cpx_cur
                     best_model = avion
-                    best_state = e0  # on affiche l'état stable du step
+                    best_state = e
 
-            # styliser gagnant, ligne de vent, remplissage
+            # styliser gagnant, ligne de vent, remplissage & glow
             for metric, ax in self.axes.items():
                 for avion, s in self.series[metric].items():
                     is_best = (avion == best_model)
-                    s["line"].set_linewidth(3.8 if is_best else 2.3)
-                    s["line"].set_alpha(1.0 if is_best else 0.60)
-                    s["shadow"].set_alpha(0.28 if is_best else 0.12)
+                    s["line"].set_linewidth(3.8 if is_best else 2.4)
+                    s["line"].set_alpha(1.0 if is_best else 0.70)
+                    s["shadow"].set_alpha(0.30 if is_best else 0.14)
 
                 self.wind_lines[metric].set_xdata([v_cur, v_cur])
 
-                # remplissage sous la meilleure courbe — sûr
+                # remplissage sous la meilleure courbe — x déjà croissants
                 if best_model:
                     bx = self.series[metric][best_model]["x"]
                     by = self.series[metric][best_model]["y"]
                     if len(bx) >= 2:
                         bx_np = np.asarray(bx, dtype=float)
                         by_np = np.asarray(by, dtype=float)
-                        order = np.argsort(bx_np)
-                        bx_np, by_np = bx_np[order], by_np[order]
-                        if np.all(np.diff(bx_np) > 0):
-                            fb = self.fill_best[metric]
-                            if isinstance(fb, PolyCollection):
-                                try:
-                                    fb.remove()
-                                except Exception:
-                                    pass
-                            self.fill_best[metric] = ax.fill_between(
-                                bx_np, by_np, step="pre",
-                                color=PALETTE[best_model], alpha=0.10, zorder=0
-                            )
+
+                        fb = self.fill_best[metric]
+                        if isinstance(fb, PolyCollection):
+                            try:
+                                fb.remove()
+                            except Exception:
+                                pass
+                        self.fill_best[metric] = ax.fill_between(
+                            bx_np, by_np, step="pre",
+                            color=PALETTE[best_model], alpha=0.10, zorder=0
+                        )
+
                 self.best_text[metric].set_text(
                     f"Best: {best_model if best_model else '—'}")
+
+                # glow marker collé sur la courbe (pas de décalage)
+                if best_model:
+                    bx = self.series[metric][best_model]["x"]
+                    by = self.series[metric][best_model]["y"]
+                    if len(bx) > 0:
+                        x_last = bx[-1]
+                        y_last = by[-1]
+                        outer, inner = self.series[metric][best_model]["glow"]
+                        outer.set_offsets([[x_last, y_last]])
+                        inner.set_offsets([[x_last, y_last]])
+                        outer.set_alpha(0.28)
+                        inner.set_alpha(1.0)
 
             # KPIs
             if best_model and best_state:
@@ -457,7 +488,8 @@ class App:
                 self.kpi_vit.config(text=f"{best_state['vitesse']:.0f}")
 
             self.fig.suptitle(
-                f"Vent ~{v_cur:.0f} km/h   |   {self.direction}   |   {self.distance} km   |   {self.pax} pax",
+                f"Vent {v_cur:3.0f} km/h   |   {self.direction}   "
+                f"|   {self.distance} km   |   {self.pax} pax",
                 fontsize=14, fontweight="bold", color=FG
             )
 
@@ -468,7 +500,7 @@ class App:
                 self.current_seq = next(self.seq_gen)
                 self._reset_sequence(self.current_seq)
 
-            self.canvas.draw()
+            self.canvas.draw_idle()
             return []
         except Exception:
             traceback.print_exc()
