@@ -6,7 +6,7 @@ services:
     ports:
       - 8080
     resources:
-      cpu: 1000
+      cpu: 4000
       memory: 2048
     scaling:
       min: 1
